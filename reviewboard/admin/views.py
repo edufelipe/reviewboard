@@ -10,6 +10,7 @@ from djblets.siteconfig.views import site_settings as djblets_site_settings
 
 from reviewboard.admin.checks import check_updates_required
 from reviewboard.admin.cache_stats import get_cache_stats, get_has_cache_stats
+from reviewboard.policy.models import Policy
 from reviewboard.reviews.models import Group, DefaultReviewer
 from reviewboard.scmtools.models import Repository
 
@@ -25,6 +26,7 @@ def dashboard(request, template_name="admin/dashboard.html"):
         'reviewgroup_count': Group.objects.count(),
         'defaultreviewer_count': DefaultReviewer.objects.count(),
         'repository_count': Repository.objects.count(),
+        'policy_count': Policy.objects.count(),
         'has_cache_stats': get_has_cache_stats(),
         'title': _("Dashboard"),
         'root_path': settings.SITE_ROOT + "admin/db/"

@@ -17,6 +17,8 @@ from djblets.util.templatetags.djblets_images import crop_image, thumbnail
 
 from reviewboard.changedescs.models import ChangeDescription
 from reviewboard.diffviewer.models import DiffSet, DiffSetHistory, FileDiff
+from reviewboard.policy.applier import policy_checks
+from reviewboard.policy.models import Policy
 from reviewboard.reviews.signals import review_request_published, \
                                         reply_published, review_published
 from reviewboard.reviews.errors import PermissionError
@@ -465,6 +467,19 @@ class ReviewRequest(models.Model):
 
         if type not in [self.SUBMITTED, self.DISCARDED]:
             raise AttributeError("%s is not a valid close type" % type)
+ 
+        context = {"user" : user, "review_request" : self}
+
+        if not policy_checks(Policy.CLOSE_REVIEW, **context):
+            raise PermissionError
+
+        if type == self.SUBMITTED and \
+            not policy_checks(Policy.CLOSE_REVIEW_AS_SUBMITTED, **context):
+            raise PermissionError
+
+        elif type == self.DISCARDED and \
+            not policy_checks(Policy.CLOSE_REVIEW_AS_DISCARDED, **context):
+            raise PermissionError
 
         self.status = type
         self.save()
@@ -482,6 +497,10 @@ class ReviewRequest(models.Model):
         """
         if (user and not self.is_mutable_by(user) and
             not user.has_perm("reviews.can_change_status")):
+            raise PermissionError
+
+        context = {"user" : user, "review_request" : self}
+        if not policy_checks(Policy.REOPEN_REVIEW, **context):
             raise PermissionError
 
         if self.status != self.PENDING_REVIEW:
