@@ -1,6 +1,7 @@
 from datetime import datetime
 
 from django.db import models
+from django.db.models.aggregates import Sum
 from django.utils.translation import ugettext_lazy as _
 from djblets.util.fields import Base64Field
 
@@ -37,6 +38,10 @@ class FileDiff(models.Model):
     parent_diff = Base64Field(_("parent diff"), db_column="parent_diff_base64",
                               blank=True)
     status = models.CharField(_("status"), max_length=1, choices=STATUSES)
+    insert_line_count = models.IntegerField(_("insert line count"), default=0)
+    delete_line_count = models.IntegerField(_("delete line count"), default=0)
+    replace_line_count = models.IntegerField(_("replace line count"),
+                                             default=0)
 
     @property
     def deleted(self):
@@ -66,6 +71,29 @@ class DiffSet(models.Model):
         default=0,
         help_text=_("The diff generator compatibility version to use. "
                     "This can and should be ignored."))
+
+    @property
+    def line_counts(self):
+        """
+        Return a tuple containing (insert,change,delete) line count.
+        """
+        query = self.files.aggregate(Sum('insert_line_count'),
+            Sum('delete_line_count'), Sum('replace_line_count'))
+        return (query['insert_line_count__sum'] or 0,
+                query['replace_line_count__sum'] or 0,
+                query['delete_line_count__sum'] or 0)
+
+    @property
+    def insert_line_count(self):
+        return self.line_counts[0]
+
+    @property
+    def replace_line_count(self):
+        return self.line_counts[1]
+
+    @property
+    def delete_line_count(self):
+        return self.line_counts[2]
 
     def save(self, **kwargs):
         """

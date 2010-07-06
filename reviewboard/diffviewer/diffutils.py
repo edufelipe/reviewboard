@@ -632,6 +632,8 @@ def get_chunks(diffset, filediff, interfilediff, force_interdiff,
             "Generating diff chunks for filediff id %s (%s)" %
             (filediff.id, filediff.source_file))
 
+    replace_line_count, insert_line_count, delete_line_count = 0, 0, 0
+
     for tag, i1, i2, j1, j2, meta in opcodes_with_metadata(differ):
         oldlines = markup_a[i1:i2]
         newlines = markup_b[j1:j2]
@@ -641,6 +643,13 @@ def get_chunks(diffset, filediff, interfilediff, force_interdiff,
                     xrange(linenum, linenum + numlines),
                     xrange(i1 + 1, i2 + 1), xrange(j1 + 1, j2 + 1),
                     a[i1:i2], b[j1:j2], oldlines, newlines)
+
+        if tag == 'replace':
+            replace_line_count += i2 - i1
+        elif tag == 'insert':
+            insert_line_count += j2 - j1
+        elif tag == 'delete':
+            delete_line_count += i2 - i1
 
         if tag == 'equal' and numlines > collapse_threshold:
             last_range_start = numlines - context_num_lines
@@ -661,6 +670,12 @@ def get_chunks(diffset, filediff, interfilediff, force_interdiff,
             yield new_chunk(lines, 0, numlines, False, tag, meta)
 
         linenum += numlines
+
+    # Update statistics about diff.
+    filediff.replace_line_count = replace_line_count
+    filediff.insert_line_count = insert_line_count
+    filediff.delete_line_count = delete_line_count
+    filediff.save()
 
     log_timer.done()
 
